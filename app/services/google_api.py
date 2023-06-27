@@ -7,6 +7,9 @@ from app.core.config import settings
 
 
 FORMAT = "%Y/%m/%d %H:%M:%S"
+ROW_COUNT = 100
+COLUMN_COUNT = 11
+RANGE = 'A1:E30'
 
 
 async def spreadsheets_create(wrapper_services: Aiogoogle) -> str:
@@ -16,21 +19,25 @@ async def spreadsheets_create(wrapper_services: Aiogoogle) -> str:
     spreadsheet_body = {
         'properties': {'title': f'Отчет от {now_date_time}',
                        'locale': 'ru_RU'},
-        'sheets': [{'properties': {'sheetType': 'GRID',
-                                   'sheetId': 0,
-                                   'title': 'Лист1',
-                                   'gridProperties': {'rowCount': 100,
-                                                      'columnCount': 11}}}]
+        'sheets': [
+            {
+                'properties': {'sheetType': 'GRID',
+                               'sheetId': 0,
+                               'title': 'Лист1',
+                               'gridProperties': {'rowCount': ROW_COUNT,
+                                                  'columnCount': COLUMN_COUNT}}
+            }
+        ]
     }
     response = await wrapper_services.as_service_account(
         service.spreadsheets.create(json=spreadsheet_body)
     )
-    spreadsheetid = response['spreadsheetId']
-    return spreadsheetid
+    spreadsheet_id = response['spreadsheetId']
+    return spreadsheet_id
 
 
 async def set_user_permissions(
-        spreadsheetid: str,
+        spreadsheet_id: str,
         wrapper_services: Aiogoogle
 ) -> None:
     """Предоставляет права доступа к google-документу."""
@@ -40,14 +47,14 @@ async def set_user_permissions(
     service = await wrapper_services.discover('drive', 'v3')
     await wrapper_services.as_service_account(
         service.permissions.create(
-            fileId=spreadsheetid,
+            fileId=spreadsheet_id,
             json=permissions_body,
             fields="id"
         ))
 
 
 async def spreadsheets_update_value(
-        spreadsheetid: str,
+        spreadsheet_id: str,
         projects: List[Dict[str, str]],
         wrapper_services: Aiogoogle
 ) -> None:
@@ -59,13 +66,12 @@ async def spreadsheets_update_value(
         ['Топ проектов по скорости закрытия'],
         ['Название проекта', 'Время сбора', 'Описание']
     ]
-    for project in projects:
-        new_row = [
-            project['name'],
-            project['period'],
-            project['description'],
+    table_values.extend(
+        [
+            [project['name'], project['period'], project['description']]
+            for project in projects
         ]
-        table_values.append(new_row)
+    )
 
     update_body = {
         'majorDimension': 'ROWS',
@@ -73,8 +79,8 @@ async def spreadsheets_update_value(
     }
     await wrapper_services.as_service_account(
         service.spreadsheets.values.update(
-            spreadsheetId=spreadsheetid,
-            range='A1:E30',
+            spreadsheetId=spreadsheet_id,
+            range=RANGE,
             valueInputOption='USER_ENTERED',
             json=update_body
         )

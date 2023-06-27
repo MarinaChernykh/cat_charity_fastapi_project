@@ -1,4 +1,4 @@
-from typing import List, Dict
+from urllib.parse import urljoin
 
 from aiogoogle import Aiogoogle
 from fastapi import APIRouter, Depends
@@ -15,16 +15,17 @@ from app.services.google_api import (
 
 router = APIRouter()
 
+SPREADSHEETS_URL = 'https://docs.google.com/spreadsheets/d/'
+
 
 @router.get(
     '/',
-    response_model=List[Dict[str, str]],
     dependencies=[Depends(current_superuser)],
 )
 async def get_report(
         session: AsyncSession = Depends(get_async_session),
         wrapper_services: Aiogoogle = Depends(get_service)
-):
+) -> str:
     """
     Только для суперюзеров.
     Создает google-отчет со списком закрытых проектов,
@@ -33,9 +34,9 @@ async def get_report(
     closed_projects = await charity_project_crud.get_projects_by_completion_rate(
         session
     )
-    spreadsheetid = await spreadsheets_create(wrapper_services)
-    await set_user_permissions(spreadsheetid, wrapper_services)
-    await spreadsheets_update_value(spreadsheetid,
+    spreadsheet_id = await spreadsheets_create(wrapper_services)
+    await set_user_permissions(spreadsheet_id, wrapper_services)
+    await spreadsheets_update_value(spreadsheet_id,
                                     closed_projects,
                                     wrapper_services)
-    return closed_projects
+    return urljoin(SPREADSHEETS_URL, spreadsheet_id)
