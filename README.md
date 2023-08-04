@@ -16,7 +16,6 @@ API-сервис QR_Кот служит для помощи животным, о
 * SQLalchemy 1.4.36
 * Alembic 1.7.7
 * Pydantic 1.9.1
-* Uvicorn 0.17.6
 * Google API
 
 
